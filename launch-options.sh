@@ -84,10 +84,11 @@ NVIDIA_SMOOTH_MOTION_ENABLED=1
 _load_conf() {
     local file="$1"
     while IFS= read -r line; do
-        # Strip inline comments, then trim leading/trailing whitespace
+        # Strip a trailing CR from CRLF files, then strip comments and trim whitespace
+        line="${line%$'\r'}"
         line="${line%%#*}"
-        line="${line#"${line%%[! ]*}"}"   # ltrim
-        line="${line%"${line##*[! ]}"}"   # rtrim
+        line="${line#"${line%%[![:space:]]*}"}"   # ltrim
+        line="${line%"${line##*[![:space:]]}"}"   # rtrim
         [[ -z "$line" ]] && continue
         # Only allow KEY=VALUE where KEY is alphanumeric + underscore
         if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
