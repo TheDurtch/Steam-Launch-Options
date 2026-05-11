@@ -183,4 +183,4 @@ rm -rf ~/.cache/game-shaders/570
 
 ## License
 
-[MIT](LICENSE)
+[LICENSE](LICENSE)
