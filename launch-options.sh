@@ -84,9 +84,10 @@ NVIDIA_SMOOTH_MOTION_ENABLED=1
 _load_conf() {
     local file="$1"
     while IFS= read -r line; do
-        # Strip inline comments and trim whitespace
+        # Strip inline comments, then trim leading/trailing whitespace
         line="${line%%#*}"
-        line="${line//[[:space:]]/}"
+        line="${line#"${line%%[! ]*}"}"   # ltrim
+        line="${line%"${line##*[! ]}"}"   # rtrim
         [[ -z "$line" ]] && continue
         # Only allow KEY=VALUE where KEY is alphanumeric + underscore
         if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
@@ -140,7 +141,13 @@ fi
 if [[ "$PROTON_DLSS_ENABLED" == "1" ]]; then
     export PROTON_DLSS_UPGRADE=1
     [[ "$PROTON_DLSS_INDICATOR" == "1" ]] && export PROTON_DLSS_INDICATOR=1
-    [[ "$VKD3D_DXR_ENABLED"     == "1" ]] && export VKD3D_CONFIG=dxr11,dxr
+fi
+
+if [[ "$VKD3D_DXR_ENABLED" == "1" ]]; then
+    export VKD3D_CONFIG=dxr11,dxr
+fi
+
+if [[ "$PROTON_NVAPI_ENABLED" == "1" ]] || [[ "$PROTON_DLSS_ENABLED" == "1" ]]; then
     export PROTON_ENABLE_NGX_UPDATER=1
 fi
 
