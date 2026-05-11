@@ -182,7 +182,7 @@ fi
     echo "NVAPI:                 $PROTON_NVAPI_ENABLED"
     echo "NVIDIA Smooth Motion:  $NVIDIA_SMOOTH_MOTION_ENABLED"
     echo "--- Environment (filtered) ---"
-    env | grep -E 'Steam|DXVK|VKD3D|__GL|WAYLAND|DISPLAY|NTSYNC|PROTON|NVPRESENT|MESA'
+    env | grep -E 'Steam|DXVK|VKD3D|__GL|WAYLAND|DISPLAY|NTSYNC|PROTON|NVPRESENT|MESA' || true
     echo "============================="
 } > "$LOG_FILE"
 
