@@ -80,6 +80,19 @@ VKD3D_DXR_ENABLED=1
 PROTON_NVAPI_ENABLED=1
 NVIDIA_SMOOTH_MOTION_ENABLED=1
 
+# Variables that must never be overridden from config files.
+# Includes shell internals and script-critical vars.
+readonly _CONF_DENYLIST=(
+    # Shell / POSIX internals
+    IFS PATH HOME USER UID EUID PPID SHLVL PWD OLDPWD
+    BASH BASH_VERSION BASHOPTS SHELLOPTS BASH_ENV
+    PS1 PS2 PS3 PS4
+    # Script-internal variables
+    APPID BASE CONFIG_DIR DEFAULTS_CONF GAME_CONF CACHE_DIR LOG_FILE
+    # Security-sensitive loader variables
+    LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT
+)
+
 # Source helper — strip comments and blank lines, then eval safe KEY=VALUE pairs
 _load_conf() {
     local file="$1"
@@ -92,7 +105,22 @@ _load_conf() {
         [[ -z "$line" ]] && continue
         # Only allow KEY=VALUE where KEY is alphanumeric + underscore
         if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
-            declare -g "${BASH_REMATCH[1]}=${BASH_REMATCH[2]}"
+            local key="${BASH_REMATCH[1]}"
+            local val="${BASH_REMATCH[2]}"
+            # Reject denied keys
+            local denied=0
+            local d
+            for d in "${_CONF_DENYLIST[@]}"; do
+                if [[ "$key" == "$d" ]]; then
+                    denied=1
+                    break
+                fi
+            done
+            if (( denied )); then
+                echo "[steam-launch] WARNING: config '$file' tried to set denied variable '$key' — ignored." >&2
+            else
+                declare -g "${key}=${val}"
+            fi
         fi
     done < "$file"
 }
