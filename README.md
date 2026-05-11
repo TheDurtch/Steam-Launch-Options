@@ -77,12 +77,12 @@ NTSYNC_ENABLED=1
 PROTON_NVIDIA_LIBS_ENABLED=1
 PROTON_NVIDIA_LIBS_NO_32BIT=1         # set to 0 if 32-bit games break
 
-# DLSS upgrade, NGX & DXR ray tracing
+# DLSS upgrade (also triggers NGX updater when enabled)
 PROTON_DLSS_ENABLED=1
 PROTON_DLSS_INDICATOR=1               # on-screen DLSS indicator
 VKD3D_DXR_ENABLED=1                   # DXR via VKD3D
 
-# NVAPI (required for DLSS / RTX features)
+# NVAPI & NGX updater (required for DLSS / RTX features)
 PROTON_NVAPI_ENABLED=1
 
 # NVIDIA Smooth Motion (driver-level frame generation)
@@ -127,10 +127,10 @@ EOF
 | `NTSYNC_ENABLED` | `1` | NTSync kernel sync primitives |
 | `PROTON_NVIDIA_LIBS_ENABLED` | `1` | Use NVIDIA-native libs inside Proton |
 | `PROTON_NVIDIA_LIBS_NO_32BIT` | `1` | Disable 32-bit NVIDIA libs (safe for most games) |
-| `PROTON_DLSS_ENABLED` | `1` | DLSS upgrade |
+| `PROTON_DLSS_ENABLED` | `1` | DLSS upgrade (`PROTON_DLSS_UPGRADE`); also enables NGX updater |
 | `PROTON_DLSS_INDICATOR` | `1` | Show DLSS on-screen indicator |
 | `VKD3D_DXR_ENABLED` | `1` | DXR (ray tracing) via VKD3D (`VKD3D_CONFIG=dxr11,dxr`) |
-| `PROTON_NVAPI_ENABLED` | `1` | NVAPI support (`PROTON_ENABLE_NVAPI`) + NGX updater |
+| `PROTON_NVAPI_ENABLED` | `1` | NVAPI support (`PROTON_ENABLE_NVAPI`); also enables NGX updater |
 | `NVIDIA_SMOOTH_MOTION_ENABLED` | `1` | NVIDIA Smooth Motion frame generation |
 
 ---
