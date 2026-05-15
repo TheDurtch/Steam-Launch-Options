@@ -17,16 +17,7 @@ GAME_CONF="$CONFIG_DIR/games/$APPID.conf"
 
 # --- Detect GPU vendor (nvidia / amd / unknown) ---
 _detect_gpu_vendor() {
-    if command -v lspci &>/dev/null; then
-        local pci_out
-        pci_out=$(lspci 2>/dev/null | grep -Ei 'VGA compatible controller|3D controller|Display controller')
-        if echo "$pci_out" | grep -qi 'nvidia'; then
-            echo "nvidia"; return
-        elif echo "$pci_out" | grep -Eqi 'amd|radeon|advanced micro devices'; then
-            echo "amd"; return
-        fi
-    fi
-    # Fallback: /sys/class/drm vendor IDs (NVIDIA=0x10de, AMD=0x1002)
+    # Primary: /sys/class/drm vendor IDs (NVIDIA=0x10de, AMD=0x1002)
     local v
     for v in /sys/class/drm/card*/device/vendor; do
         [[ -f "$v" ]] || continue
@@ -36,6 +27,17 @@ _detect_gpu_vendor() {
             0x1002) echo "amd";    return ;;
         esac
     done
+    # Secondary: lspci string matching
+    if command -v lspci &>/dev/null; then
+        local pci_out
+        pci_out=$(lspci 2>/dev/null | grep -Ei 'VGA compatible controller|3D controller|Display controller' || true)
+        if echo "$pci_out" | grep -qi 'nvidia'; then
+            echo "nvidia"; return
+        elif echo "$pci_out" | grep -Eqi 'amd|radeon|advanced micro devices'; then
+            echo "amd"; return
+        fi
+    fi
+    # Ultimate fallback: vendor unknown -- only basic/shared flags will be applied
     echo "unknown"
 }
 
@@ -279,13 +281,16 @@ fi
     echo "Config:     $DEFAULTS_CONF"
     [[ -f "$GAME_CONF" ]] && echo "Game conf:  $GAME_CONF"
     echo "GPU vendor: $GPU_VENDOR"
+    if [[ "$GPU_VENDOR" == "unknown" ]]; then
+        echo "WARNING: GPU vendor could not be detected — only basic/shared flags are active (DXVK, VKD3D, Mesa, NTSync). Vendor-specific options (NVIDIA/AMD) are disabled."
+    fi
     echo "--- Active options ---"
-    echo "NVIDIA shader cache:   $NVIDIA_SHADER_CACHE_ENABLED"
     echo "DXVK:                  $DXVK_ENABLED"
     echo "VKD3D:                 $VKD3D_ENABLED"
     echo "Mesa shader cache:     $MESA_SHADER_CACHE_ENABLED"
     echo "NTSync:                $NTSYNC_ENABLED"
     if [[ "$GPU_VENDOR" == "nvidia" ]]; then
+        echo "NVIDIA shader cache:   $NVIDIA_SHADER_CACHE_ENABLED"
         echo "Proton NVIDIA libs:    $PROTON_NVIDIA_LIBS_ENABLED"
         echo "DLSS/NGX:              $PROTON_DLSS_ENABLED"
         echo "NVAPI:                 $PROTON_NVAPI_ENABLED"
