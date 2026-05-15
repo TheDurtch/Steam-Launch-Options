@@ -262,11 +262,12 @@ if [[ "$GPU_VENDOR" == "amd" ]]; then
     if [[ -n "$AMD_VULKAN_ICD" ]]; then
         export AMD_VULKAN_ICD
     fi
+fi
 
-    if [[ "$WINE_FSR_ENABLED" == "1" ]]; then
-        export WINE_FULLSCREEN_FSR=1
-        export WINE_FULLSCREEN_FSR_STRENGTH="$WINE_FSR_STRENGTH"
-    fi
+# Wine FSR -- applied on AMD and unknown GPUs; skipped on NVIDIA where DLSS is preferred
+if [[ "$WINE_FSR_ENABLED" == "1" ]] && [[ "$GPU_VENDOR" != "nvidia" ]]; then
+    export WINE_FULLSCREEN_FSR=1
+    export WINE_FULLSCREEN_FSR_STRENGTH="$WINE_FSR_STRENGTH"
 fi
 
 # --- Logging ---
@@ -299,6 +300,8 @@ fi
     if [[ "$GPU_VENDOR" == "amd" ]]; then
         echo "RADV perftest:         $RADV_PERFTEST_ENABLED ($RADV_PERFTEST_FLAGS)"
         echo "AMD Vulkan ICD:        $AMD_VULKAN_ICD"
+    fi
+    if [[ "$GPU_VENDOR" != "nvidia" ]]; then
         echo "Wine FSR:              $WINE_FSR_ENABLED (strength=$WINE_FSR_STRENGTH)"
     fi
     echo "--- Environment (filtered) ---"
