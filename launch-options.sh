@@ -79,7 +79,7 @@ NVIDIA_SMOOTH_MOTION_ENABLED=1
 
 # RADV (Mesa Vulkan) performance-test features
 # Common flags: gpl (pipeline libraries), ngg (next-gen geometry),
-#               nggc (NGX culling), rt (ray tracing)
+#               nggc (NGG culling), rt (ray tracing)
 RADV_PERFTEST_ENABLED=1
 RADV_PERFTEST_FLAGS=gpl,ngg
 
@@ -258,7 +258,7 @@ if [[ "$GPU_VENDOR" == "amd" ]]; then
     fi
 
     if [[ -n "$AMD_VULKAN_ICD" ]]; then
-        export AMD_VULKAN_ICD="$AMD_VULKAN_ICD"
+        export AMD_VULKAN_ICD
     fi
 
     if [[ "$WINE_FSR_ENABLED" == "1" ]]; then
