@@ -109,6 +109,28 @@ MESA_SHADER_CACHE_MAX_SIZE=12G
 
 # NTSync kernel synchronisation primitives
 NTSYNC_ENABLED=1
+
+# ── Debugging / advanced ─────────────────────────────────────────────────────
+
+# Proton/Wine logging (for debugging crashes). Off by default — leave at 0
+# unless investigating a crash, since it grows large and slows the game.
+PROTON_LOG_ENABLED=0
+# Directory the steam-<APPID>.log is written to (default: $HOME)
+PROTON_LOG_DIR=
+# WINEDEBUG channel spec controlling wine verbosity. "-all" keeps wine quiet
+# while the VKD3D/DXVK warn-level output still records GPU device-lost reasons.
+# Use "1" for Proton's (very verbose) default channel set instead.
+PROTON_LOG_CHANNELS=-all
+
+# Extra comma-separated VKD3D_CONFIG flags appended to the ones the script
+# already sets (e.g. dxr11,dxr on NVIDIA). Leave empty for none.
+# Example: VKD3D_CONFIG_EXTRA=enable_experimental_features,descriptor_heap
+VKD3D_CONFIG_EXTRA=
+
+# Arbitrary extra environment variables to export, space-separated KEY=VALUE
+# pairs (unquoted; values may not contain spaces). Subject to the same denylist
+# as config keys. Example: EXTRA_ENV=PROTON_VKD3D_HEAP=1 SOME_OTHER=2
+EXTRA_ENV=
 EOF
 fi
 
@@ -135,6 +157,11 @@ RADV_PERFTEST_FLAGS=gpl,ngg
 AMD_VULKAN_ICD=RADV
 WINE_FSR_ENABLED=1
 WINE_FSR_STRENGTH=2
+PROTON_LOG_ENABLED=0
+PROTON_LOG_DIR="$HOME"
+PROTON_LOG_CHANNELS=-all
+VKD3D_CONFIG_EXTRA=
+EXTRA_ENV=
 
 # Variables that must never be overridden from config files.
 # Includes shell internals and script-critical vars.
@@ -235,9 +262,14 @@ if [[ "$PROTON_DLSS_ENABLED" == "1" ]] && [[ "$GPU_VENDOR" == "nvidia" ]]; then
     [[ "$PROTON_DLSS_INDICATOR" == "1" ]] && export PROTON_DLSS_INDICATOR=1
 fi
 
-if [[ "$VKD3D_DXR_ENABLED" == "1" ]] && [[ "$GPU_VENDOR" == "nvidia" ]]; then
-    export VKD3D_CONFIG=dxr11,dxr
+# Build VKD3D_CONFIG from the DXR toggle (NVIDIA only) plus any user-supplied
+# extra flags (vendor-independent — vkd3d-proton runs on RADV too).
+_vkd3d_cfg=""
+[[ "$VKD3D_DXR_ENABLED" == "1" ]] && [[ "$GPU_VENDOR" == "nvidia" ]] && _vkd3d_cfg="dxr11,dxr"
+if [[ -n "${VKD3D_CONFIG_EXTRA:-}" ]]; then
+    _vkd3d_cfg="${_vkd3d_cfg:+$_vkd3d_cfg,}${VKD3D_CONFIG_EXTRA}"
 fi
+[[ -n "$_vkd3d_cfg" ]] && export VKD3D_CONFIG="$_vkd3d_cfg"
 
 if { [[ "$PROTON_NVAPI_ENABLED" == "1" ]] || [[ "$PROTON_DLSS_ENABLED" == "1" ]]; } && [[ "$GPU_VENDOR" == "nvidia" ]]; then
     export PROTON_ENABLE_NGX_UPDATER=1
@@ -268,6 +300,48 @@ fi
 if [[ "$WINE_FSR_ENABLED" == "1" ]] && [[ "$GPU_VENDOR" != "nvidia" ]]; then
     export WINE_FULLSCREEN_FSR=1
     export WINE_FULLSCREEN_FSR_STRENGTH="$WINE_FSR_STRENGTH"
+fi
+
+# --- Debugging / advanced (vendor-independent) ---
+
+if [[ "$PROTON_LOG_ENABLED" == "1" ]]; then
+    export PROTON_LOG=1
+    export PROTON_LOG_DIR="${PROTON_LOG_DIR:-$HOME}"
+    # Control wine verbosity via WINEDEBUG. "-all" silences wine's own channels
+    # (keeps the log small); "1"/"default" lets Proton pick its verbose set by
+    # clearing any inherited WINEDEBUG so the behavior is deterministic.
+    case "$PROTON_LOG_CHANNELS" in
+        ""|1|default) unset WINEDEBUG ;;
+        *) export WINEDEBUG="$PROTON_LOG_CHANNELS" ;;
+    esac
+    # Surface GPU device-removed / errors from the translation layers into the
+    # logs regardless of wine channel verbosity — this is where Xid/device-lost
+    # reasons show up.
+    export VKD3D_DEBUG=warn
+    export DXVK_LOG_LEVEL=warn
+fi
+
+# Arbitrary extra environment passthrough (space-separated KEY=VALUE pairs),
+# guarded by the same denylist used for config keys. Split on whitespace into an
+# array (no word-splitting/globbing surprises, IFS-independent).
+if [[ -n "${EXTRA_ENV:-}" ]]; then
+    IFS=$' \t\n' read -ra _extra_env_pairs <<< "$EXTRA_ENV"
+    for _kv in "${_extra_env_pairs[@]}"; do
+        if [[ "$_kv" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+            _k="${BASH_REMATCH[1]}"
+            _deny=0
+            for d in "${_CONF_DENYLIST[@]}"; do
+                [[ "$_k" == "$d" ]] && { _deny=1; break; }
+            done
+            if (( _deny )); then
+                echo "[steam-launch] WARNING: EXTRA_ENV tried to set denied variable '$_k' — ignored." >&2
+            else
+                export "$_kv"
+            fi
+        else
+            echo "[steam-launch] WARNING: EXTRA_ENV entry '$_kv' is not a valid KEY=VALUE — ignored." >&2
+        fi
+    done
 fi
 
 # --- Logging ---
@@ -304,8 +378,15 @@ fi
     if [[ "$GPU_VENDOR" != "nvidia" ]]; then
         echo "Wine FSR:              $WINE_FSR_ENABLED (strength=$WINE_FSR_STRENGTH)"
     fi
+    echo "Proton logging:        $PROTON_LOG_ENABLED"
+    if [[ "$PROTON_LOG_ENABLED" == "1" ]]; then
+        echo "  log dir:             ${PROTON_LOG_DIR:-$HOME}"
+        echo "  wine channels:       ${PROTON_LOG_CHANNELS:-(Proton default)}"
+    fi
+    echo "VKD3D_CONFIG extra:    ${VKD3D_CONFIG_EXTRA:-(none)}"
+    echo "Extra env:             ${EXTRA_ENV:-(none)}"
     echo "--- Environment (filtered) ---"
-    env | grep -E 'Steam|DXVK|VKD3D|__GL|WAYLAND|DISPLAY|NTSYNC|PROTON|NVPRESENT|MESA|RADV|AMD_VULKAN|WINE_FULLSCREEN' || true
+    env | grep -E 'Steam|DXVK|VKD3D|__GL|WAYLAND|DISPLAY|NTSYNC|PROTON|NVPRESENT|MESA|RADV|AMD_VULKAN|WINE_FULLSCREEN|WINEDEBUG' || true
     echo "============================="
 } > "$LOG_FILE"
 
