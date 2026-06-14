@@ -222,9 +222,10 @@ if [[ "$PROTON_LOG_ENABLED" == "1" ]]; then
     export PROTON_LOG=1
     export PROTON_LOG_DIR="${PROTON_LOG_DIR:-$HOME}"
     # Control wine verbosity via WINEDEBUG. "-all" silences wine's own channels
-    # (keeps the log small); "1"/"default" lets Proton pick its verbose set.
+    # (keeps the log small); "1"/"default" lets Proton pick its verbose set by
+    # clearing any inherited WINEDEBUG so the behavior is deterministic.
     case "$PROTON_LOG_CHANNELS" in
-        ""|1|default) : ;;
+        ""|1|default) unset WINEDEBUG ;;
         *) export WINEDEBUG="$PROTON_LOG_CHANNELS" ;;
     esac
     # Surface GPU device-removed / errors from the translation layers into the
@@ -235,9 +236,11 @@ if [[ "$PROTON_LOG_ENABLED" == "1" ]]; then
 fi
 
 # Arbitrary extra environment passthrough (space-separated KEY=VALUE pairs),
-# guarded by the same denylist used for config keys.
+# guarded by the same denylist used for config keys. Split on whitespace into an
+# array (no word-splitting/globbing surprises, IFS-independent).
 if [[ -n "${EXTRA_ENV:-}" ]]; then
-    for _kv in $EXTRA_ENV; do
+    IFS=$' \t\n' read -ra _extra_env_pairs <<< "$EXTRA_ENV"
+    for _kv in "${_extra_env_pairs[@]}"; do
         if [[ "$_kv" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
             _k="${BASH_REMATCH[1]}"
             _deny=0
@@ -277,6 +280,10 @@ fi
     echo "NVAPI:                 $PROTON_NVAPI_ENABLED"
     echo "NVIDIA Smooth Motion:  $NVIDIA_SMOOTH_MOTION_ENABLED"
     echo "Proton logging:        $PROTON_LOG_ENABLED"
+    if [[ "$PROTON_LOG_ENABLED" == "1" ]]; then
+        echo "  log dir:             ${PROTON_LOG_DIR:-$HOME}"
+        echo "  wine channels:       ${PROTON_LOG_CHANNELS:-(Proton default)}"
+    fi
     echo "VKD3D_CONFIG extra:    ${VKD3D_CONFIG_EXTRA:-(none)}"
     echo "Extra env:             ${EXTRA_ENV:-(none)}"
     echo "--- Environment (filtered) ---"
