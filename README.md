@@ -22,7 +22,7 @@ A dynamic Steam game launcher wrapper for Linux that applies per-game environmen
 
 ```bash
 curl -Lo ~/.local/bin/launch-options.sh \
-  https://raw.githubusercontent.com/TheDurtch/Steam-Launch-Options/main/launch-options.sh
+  https://raw.githubusercontent.com/Kagejitsu/Steam-Launch-Options/main/launch-options.sh
 chmod +x ~/.local/bin/launch-options.sh
 ```
 
